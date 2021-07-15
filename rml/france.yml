@@ -1,0 +1,141 @@
+prefixes:
+  # time: "http://www.w3.org/2006/time#"
+  # dbr: "http://dbpedia.org/resource/"
+  dct: "http://purl.org/dc/terms/"
+  gr: "http://purl.org/goodrelations/v1#"
+  rdf: "http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+  xsd: "http://www.w3.org/2001/XMLSchema#"
+  dcat: "https://www.w3.org/ns/dcat#"
+  vcard: "http://www.w3.org/2006/vcard/"
+  foaf: "http://xmlns.com/foaf/0.1/"
+  owl: "http://www.w3.org/2002/07/owl#"
+  cef: "http://www.cefriel.com/knowledge_tech/ontologies/asset_manager#"  
+  sprint-nap: "http://www.sprint-transport.eu/function#"  
+
+base: "http://www.sprint-transport.eu/mappings/nap/france#"
+
+external:
+    catalogue-title: France NAP
+    catalogue-description: The France National Access Point for transport data
+    catalogue-spatial: http://publications.europa.eu/resource/authority/country/FRA
+    catalogue-homepage: https://transport.data.gouv.fr/
+
+mappings:
+
+  catalogue-publisher:
+    sources:
+      - ["input.json~jsonpath", '$[0]']
+    po:
+      - [a, foaf:Organization]
+      - [foaf:name, "Interministerial Digital Directorate (DINUM)"]
+
+  catalogue:
+    sources:
+      - ["input.json~jsonpath", '$[0]']
+    s: Catalogue-France
+    po:
+      - [dct:title, $(_catalogue-title)]
+      - [dct:description, $(_catalogue-description), en~lang]
+      - [dct:spatial, $(_catalogue-spatial)~iri]
+      - [foaf:homepage, $(_catalogue-homepage)~iri]
+      - p: dct:publisher
+        o:
+         - mapping: catalogue-publisher
+           condition:
+            function: equal
+            parameters:
+              - [str1, $(id)]
+              - [str2, $(id)]
+      
+  catalogue-dataset:
+    sources:
+      - ["input.json~jsonpath", "$[?(@.type=='public-transit')]"]
+    s: Catalogue-France
+    po:
+      - [dct:dataset, "Dataset-$(id)~iri"]
+      - [dcat:record, "Catalog-Record-$(id)~iri"]      
+
+  catalogue-record:
+    sources:
+      - ["input.json~jsonpath", "$[?(@.type=='public-transit')]"]
+    s: Catalog-Record-$(id)
+    po:
+      - [a, dcat:CatalogRecord] 
+      - predicates: dcat:modified
+        objects:
+          - function: sprint-nap:getFrenchNAPCatalogueRecordModifiedDate #questa funzione converte la timezone a utc e usa created_at se updated non è valorizzato, aggiungendo "T00:00:00.000" a created_at
+            parameters:
+            - [sprint-nap:updateTimeParam, $(updated)]
+            - [sprint-nap:createTimeParam, $(created_at)]
+            datatype: xsd:dateTime            
+      - [foaf:primaryTopic, "Dataset-$(id)~iri"]      
+
+  dataset:
+    sources:
+      - ["input.json~jsonpath", "$[?(@.type=='public-transit')]"]
+    s: Dataset-$(id)
+    po:
+      - [a, dcat:Dataset]
+      - [dct:type, "cef:JourneyPlanning~iri"]
+      - [dct:identifier, "FRA-$(id)"]      
+      - [dct:title, $(title), xsd:string]
+      - [dct:description, $(title), xsd:string]
+#      - [foaf:page, "<am_publisher_url>"] #come lo costruiamo/ricaviamo?
+#      - [foaf:page, "<am_store_url>"] #come lo costruiamo/ricaviamo?
+      # - p: dcat:contactPoint
+        # o:
+         # - mapping: dataset-contact-point
+           # condition:
+            # function: equal
+            # parameters:
+              # - [str1, $(id)]
+              # - [str2, $(id)]      
+      - p: dct:publisher
+        o:
+         - mapping: dataset-publisher
+           condition:
+            function: equal
+            parameters:
+              - [str1, $(id)]
+              - [str2, $(id)]
+      - [dcat:distribution, "Distribution-$(resources[*].datagouv_id)~iri"]
+      - p: dct:temporal
+        o:
+         - mapping: dataset-temporal-coverage
+           condition:
+            function: equal
+            parameters:
+              - [str1, $(id)]
+              - [str2, $(id)]
+    
+  distribution:
+    sources:
+      - ["input.json~jsonpath", "$[?(@.type=='public-transit')].resources[*]"]
+    s: Distribution-$(datagouv_id)
+    po:
+      - [a, dcat:Distribution]
+      - [dcat:accessURL, "$(url)~iri"]
+
+  # dataset-contact-point:
+    # sources:
+      # - ["input.json~jsonpath", '$.[*]']
+    # po:
+# #      - [dct:identifier, "DCP-FRA-$(id)"] #per check, commentare   
+      # - [vcard:fn, $(contactFirstName) $(contactSurName), xsd:string]
+      # - [vcard:hasEmail, $(contactEMailAddress), xsd:string] 
+
+  dataset-publisher:
+    sources:
+      - ["input.json~jsonpath", "$[?(@.type=='public-transit')]"]
+    po:
+#      - [dct:identifier, "DP-FRA-$(id)"] #per check, commentare    
+      - [a, foaf:Organization]
+      - [foaf:name, $(publisher.name), xsd:string]
+
+  dataset-temporal-coverage:
+    sources:
+      - ["input.json~jsonpath", "$[?(@.type=='public-transit' && @.resources[0] && @.resources[0].start_calendar_validity)]"]
+    po:
+#      - [dct:identifier, "DTC-FRA-$(id)"] #per check, commentare
+      - [dcat:startDate, "$(resources[0].start_calendar_validity)", xsd:date]
+      - [dcat:endDate, "$(resources[0].end_calendar_validity)", xsd:date]

@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:camel="http://camel.apache.org/schema/spring"
+       xmlns:util="http://www.springframework.org/schema/util"
+       xsi:schemaLocation="
+           http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+           http://camel.apache.org/schema/spring http://camel.apache.org/schema/spring/camel-spring.xsd
+           http://www.springframework.org/schema/util http://www.springframework.org/schema/util/spring-util.xsd">
+  <bean class="com.cefriel.chimera.processor.rml.aggregate.RMLLiftingAggregationStrategy" id="rml_lifter">
+    <property name="message" value="true"/>
+    <property name="singleRecordsFactory" value="true"/>
+  </bean>
+  <bean class="com.cefriel.chimera.processor.rml.RMLInitializerProcessor" id="rml_initializer">
+    <property name="baseUrl" value="file://./"/>
+    <property name="functionFiles">
+      <util:list id="functions">
+        <value>functions.ttl</value>
+      </util:list>
+    </property>
+  </bean>
+  <bean class="com.cefriel.chimera.processor.collect.CountTriplesRepositoryCollectorProcessor" id="count_triples"/>
+  <bean class="com.cefriel.chimera.processor.AttachGraph" id="attachGraph">
+    <property name="context" value="false"/>
+  </bean>
+  <bean class="com.cefriel.chimera.processor.DumpGraph" id="graph_dumper"/>
+  <bean class="com.cefriel.chimera.processor.onexception.OnExceptionInspectProcessor" id="inspect_ex"/>
+  <!-- Configuration -->
+  <bean class="com.cefriel.chimera.processor.rml.RMLOptions" id="rml_config">
+    <property name="concurrentRecords" value="true"/>
+    <property name="concurrentWrites" value="false"/>
+    <property name="incrementalUpdate" value="false"/>
+    <property name="batchSize" value="0"/>
+  </bean>
+  <!-- Camel routes -->
+  <camelContext id="runtime_converter_context" streamCache="true" loadTypeConverters="true" trace="false" xmlns="http://camel.apache.org/schema/spring">
+    <jmxAgent disabled="true" id="agent"/>
+    <!-- Exceptions management -->
+    <onException>
+      <exception>java.lang.Exception</exception>
+      <redeliveryPolicy maximumRedeliveries="0"/>
+      <handled><constant>false</constant></handled>
+      <camel:process ref="inspect_ex"/>
+    </onException>
+    <camel:restConfiguration component="undertow" contextPath="/chimera-nap" port="8888"/>
+    <!-- Converter input routes -->
+    <camel:rest id="_rest1">
+      <camel:get uri="/update/{country}">
+        <camel:to uri="seda:conversion?timeout=0"/>
+      </camel:get>
+    </camel:rest>
+    <!-- Main routes -->
+    <camel:route id="conversion">
+      <camel:from uri="seda:conversion"/>
+      <camel:choice>
+        <camel:when>
+          <camel:simple>${header.country} == "all"</camel:simple>
+          <camel:log loggingLevel="INFO" message="Updating all countries!"/>
+          <camel:setBody><constant>belgium,france,netherlands</constant></camel:setBody>
+          <camel:split stopOnException="true" parallelProcessing="true" streaming="true">
+            <camel:tokenize token=","/>
+            <camel:setHeader name="country"><simple>${body}</simple></camel:setHeader>
+            <camel:log loggingLevel="INFO" message="Updating ${body}"/>
+            <camel:to uri="direct:conversion_processing?timeout=0"/>
+          </camel:split>
+          <camel:setHeader name="Content-Type">
+            <camel:constant>text/plain</camel:constant>
+          </camel:setHeader>
+          <camel:setBody>
+            <simple>Metadata of the following NAPs have been updated: ${body}.</simple>
+          </camel:setBody>
+        </camel:when>
+        <camel:otherwise>
+          <camel:to uri="direct:conversion_processing?timeout=0"/>
+        </camel:otherwise>
+      </camel:choice>
+    </camel:route>
+    <!-- FRAGMENTS -->
+    <camel:route id="conversion_processing">
+      <camel:from uri="direct:conversion_processing"/>
+      <camel:log loggingLevel="INFO" message="Conversion Started for Country $simple{header.country}"/>
+      <camel:setHeader name="CamelHttpMethod">
+        <camel:simple>GET</camel:simple>
+      </camel:setHeader>
+      <camel:setHeader name="Content-Type">
+        <camel:constant>application/json</camel:constant>
+      </camel:setHeader>
+      <camel:setHeader name="Accept">
+        <camel:constant>application/json</camel:constant>
+      </camel:setHeader>
+      <camel:removeHeader headerName="Exchange.HTTP_PATH"/>
+      <camel:choice>
+        <camel:when>
+          <camel:simple>${header.country} == "belgium"</camel:simple>
+          <camel:to id="belgium_get" uri="https://www.transportdata.be/api/3/action/package_search?rows=10000&amp;bridgeEndpoint=true"/>
+        </camel:when>
+        <camel:when>
+          <camel:simple>${header.country} == "france"</camel:simple>
+          <camel:to id="france_get" uri="https://transport.data.gouv.fr/api/datasets?bridgeEndpoint=true"/>
+        </camel:when>
+        <camel:when>
+          <camel:simple>${header.country} == "netherlands"</camel:simple>
+          <camel:to id="netherlands_get" uri="https://nt.ndw.nu/services-spoa/rest/v1/ui/multimodaal?bridgeEndpoint=true"/>
+        </camel:when>
+        <camel:otherwise>
+          <camel:log loggingLevel="INFO" message="$simple{header.country} not supported!"/>
+        </camel:otherwise>
+      </camel:choice>
+      <camel:process id="attachGraph_conversion" ref="attachGraph"/>
+      <camel:to uri="direct:lifting_component?timeout=0"/>
+      <camel:process id="num_triples" ref="count_triples"/>
+      <camel:removeHeaders pattern="CamelHttp*"/>
+      <camel:setHeader name="CamelHttpMethod">
+        <camel:simple>DELETE</camel:simple>
+      </camel:setHeader>
+      <camel:toD id="post_blazegraph" uri="http://blazegraph:9999/blazegraph/namespace/kb/sparql?c=%3Chttp://sprint-transport.eu/nap/${header.country}%3E"/>
+      <!--
+      <camel:setHeader name="dump_format">
+        <camel:simple>rdfxml</camel:simple>
+      </camel:setHeader>
+      -->
+      <camel:process ref="graph_dumper"/>
+      <camel:setProperty name="CamelCharsetName">
+        <constant>utf-8</constant>
+      </camel:setProperty>
+      <camel:removeHeaders pattern="CamelHttp*"/>
+      <camel:setHeader name="Content-Type">
+        <camel:constant>text/turtle</camel:constant>
+      </camel:setHeader>
+      <camel:setHeader name="CamelHttpMethod">
+        <camel:simple>POST</camel:simple>
+      </camel:setHeader>
+      <camel:toD id="post_blazegraph" uri="http://blazegraph:9999/blazegraph/namespace/kb/sparql?context-uri=http://sprint-transport.eu/nap/${header.country}"/>
+    </camel:route>
+    <!-- LIFTING RML -->
+    <camel:route id="lifting_rml_init">
+      <camel:from uri="direct:lifting_rml_init"/>
+      <camel:process ref="rml_initializer"/>
+    </camel:route>
+    <camel:route id="lift_fragment">
+      <camel:from uri="direct:lifting_component"/>
+      <camel:setHeader name="rml_config">
+        <simple>${ref:rml_config}</simple>
+      </camel:setHeader>
+      <camel:setHeader name="rml_mappings">
+        <simple>${header.country}.ttl</simple>
+      </camel:setHeader>
+      <camel:enrich strategyRef="rml_lifter">
+        <constant>direct:lifting_rml_init</constant>
+      </camel:enrich>
+      <camel:log loggingLevel="INFO" message="Lifting completed"/>
+    </camel:route>
+  </camelContext>
+</beans>

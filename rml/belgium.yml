@@ -1,0 +1,149 @@
+prefixes:
+  # time: "http://www.w3.org/2006/time#"
+  # dbr: "http://dbpedia.org/resource/"
+  dct: "http://purl.org/dc/terms/"
+  gr: "http://purl.org/goodrelations/v1#"
+  rdf: "http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+  xsd: "http://www.w3.org/2001/XMLSchema#"
+  dcat: "https://www.w3.org/ns/dcat#"
+  vcard: "http://www.w3.org/2006/vcard/"
+  foaf: "http://xmlns.com/foaf/0.1/"
+  owl: "http://www.w3.org/2002/07/owl#"
+  cef: "http://www.cefriel.com/knowledge_tech/ontologies/asset_manager#"  
+  sprint-nap: "http://www.sprint-transport.eu/function#"  
+
+base: "http://www.sprint-transport.eu/mappings/nap/belgium#"
+
+external:
+    catalogue-title: Belgium NAP
+    catalogue-description: Belgium's National Access Point for Multimodal Travel Information Services
+    catalogue-spatial: http://publications.europa.eu/resource/authority/country/BEL
+    catalogue-homepage: https://www.transportdata.be/
+
+mappings:
+
+  catalogue-publisher:
+    sources:
+      - ["input.json~jsonpath", '$.result.results[0]']
+    po:
+      - [a, foaf:Organization]
+      - [foaf:name, "National Geographic Institute (NGI)"]
+
+  catalogue:
+    sources:
+      - ["input.json~jsonpath", '$.result.results[0]']
+    s: Catalogue-Belgium
+    po:
+      - [dct:title, $(_catalogue-title)]
+      - [dct:description, $(_catalogue-description), en~lang]
+      - [dct:spatial, $(_catalogue-spatial)~iri]
+      - [foaf:homepage, $(_catalogue-homepage)~iri]
+      - p: dct:publisher
+        o:
+         - mapping: catalogue-publisher
+           condition:
+            function: equal
+            parameters:
+              - [str1, $(id)]
+              - [str2, $(id)]
+      
+  catalogue-dataset:
+    sources:
+      - ["input.json~jsonpath", '$.result.results[*]']
+    s: Catalogue-Belgium
+    po:
+      - [dct:dataset, "Dataset-$(id)~iri"]
+      - [dcat:record, "Catalog-Record-$(id)~iri"]      
+
+  catalogue-record:
+    sources:
+      - ["input.json~jsonpath", '$.result.results[*]']
+    s: Catalog-Record-$(id)
+    po:
+      - [a, dcat:CatalogRecord]
+      - [dct:modified, $(metadata_modified), xsd:dateTime]
+      - [foaf:primaryTopic, "Dataset-$(id)~iri"]
+
+  dataset:
+    sources:
+      - ["input.json~jsonpath", '$.result.results[*]']
+    s: Dataset-$(id)
+    po:
+      - [a, dcat:Dataset]
+      - [dct:type, "cef:JourneyPlanning~iri"]
+      - [dct:identifier, "BEL-$(id)"]      
+      - [dct:title, $(title), xsd:string]
+      - [dct:description, $(notes_translated.fr), fr~lang]
+      - [dct:description, $(notes_translated.de), de~lang]
+      - [dct:description, $(notes_translated.nl), nl~lang]
+      - [dct:description, $(notes_translated.en), en~lang]
+#      - [foaf:page, "<am_publisher_url>"] #come lo costruiamo/ricaviamo?
+#      - [foaf:page, "<am_store_url>"] #come lo costruiamo/ricaviamo?
+      - p: dcat:contactPoint
+        o:
+         - mapping: dataset-contact-point
+           condition:
+            function: equal
+            parameters:
+              - [str1, $(id)]
+              - [str2, $(id)]      
+      - p: dct:publisher
+        o:
+         - mapping: dataset-publisher
+           condition:
+            function: equal
+            parameters:
+              - [str1, $(id)]
+              - [str2, $(id)]
+      - [dcat:distribution, "Distribution-$(resources[*].id)~iri"]
+      - p: dct:temporal
+        o:
+         - mapping: dataset-temporal-coverage
+           condition:
+            function: equal
+            parameters:
+              - [str1, $(id)]
+              - [str2, $(id)]
+    
+  distribution:
+    sources:
+      - ["input.json~jsonpath", '$.result.results[*].resources[*]']
+    s: Distribution-$(id)
+    po:
+      - [a, dcat:Distribution]
+      - [dcat:accessURL, $(url)~iri]
+      - [dct:issued, $(created), xsd:dateTime]
+
+  dataset-contact-point:
+    sources:
+      - ["input.json~jsonpath", '$.result.results[*]']
+    po:
+#      - [dct:identifier, "DCP-BEL-$(id)"] #per check, commentare   
+      - [vcard:fn, $(contact_name), xsd:string]
+      - [vcard:hasEmail, $(publisher_email), xsd:string] 
+
+  dataset-publisher:
+    sources:
+      - ["input.json~jsonpath", '$.result.results[*]']
+    po:
+#      - [dct:identifier, "DP-BEL-$(id)"] #per check, commentare    
+      - [a, foaf:Organization]
+      - [foaf:name, $(publisher_org), xsd:string]
+
+  dataset-temporal-coverage:
+    sources:
+      - ["input.json~jsonpath", '$.result.results[*]']
+    po:
+#      - [dct:identifier, "DTC-BEL-$(id)"] #per check, commentare
+      - predicates: dcat:startDate
+        objects:
+          - function: sprint-nap:truncateDateTime
+            parameters:
+            - [sprint-nap:dateParam, $(temporal_start)]
+            datatype: xsd:date
+      - predicates: dcat:endDate
+        objects:
+          - function: sprint-nap:truncateDateTime
+            parameters:
+            - [sprint-nap:dateParam, $(temporal_end)]
+            datatype: xsd:date

@@ -1,0 +1,105 @@
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix doap:    <http://usefulinc.com/ns/doap#> .
+@prefix fno:     <https://w3id.org/function/ontology#> .
+@prefix fnoi:    <https://w3id.org/function/vocabulary/implementation#> .
+@prefix fnom:    <https://w3id.org/function/vocabulary/mapping#> .
+@prefix lib:      <http://example.com/library#> .
+@prefix rdf:      <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:     <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:      <http://www.w3.org/2001/XMLSchema#> .
+@prefix sprint-nap: <http://www.sprint-transport.eu/function#> .
+@prefix sprintm: <http://www.sprint-transport.eu/mappings#> .
+
+##############################
+#### SPRINT-NAP functions ####
+##############################
+
+sprintm:sprintFunctions
+    a fnoi:JavaClass ;
+    doap:download-page "SprintNAPFunctions.java" ;
+    fnoi:class-name "SprintNAPFunctions" .
+
+sprint-nap:truncateDateTime a fno:Function;
+    fno:name "Truncate Date Time"^^xsd:string;
+    dcterms:description "Truncate Date Time to the xsd:date format."^^xsd:string;
+    fno:expects ( sprint-nap:dateTime );
+    fno:returns ( sprint-nap:fdate ).
+
+sprintm:truncateDateTimeMapping
+	a fnoi:Mapping ;
+	fno:function sprint-nap:truncateDateTime ;
+	fno:implementation sprintm:sprintFunctions ;
+	fno:methodMapping  [ a fnom:StringMethodMapping ;
+                           fnom:method-name "truncateDateTime" ] .
+
+sprint-nap:convertUnixTimeToDateTime a fno:Function;
+    fno:name "Convert Unix Time To Date Time"^^xsd:string;
+    dcterms:description "Convert Unix Time (in milliseconds) To Date Time to the xsd:dateTime format."^^xsd:string;
+    fno:expects ( sprint-nap:dateTime );
+    fno:returns ( sprint-nap:fdate ).
+
+sprintm:convertUnixTimeToDateTimeMapping
+	a fnoi:Mapping ;
+	fno:function sprint-nap:convertUnixTimeToDateTime ;
+	fno:implementation sprintm:sprintFunctions ;
+	fno:methodMapping  [ a fnom:StringMethodMapping ;
+                           fnom:method-name "convertUnixTimeToDateTime" ] .
+
+sprint-nap:convertUnixTimeToDate a fno:Function;
+    fno:name "Convert Unix Time To Date"^^xsd:string;
+    dcterms:description "Convert Unix Time (in milliseconds) To Date to the xsd:date format."^^xsd:string;
+    fno:expects ( sprint-nap:dateTime );
+    fno:returns ( sprint-nap:fdate ).
+	
+sprintm:convertUnixTimeToDateMapping
+	a fnoi:Mapping ;
+	fno:function sprint-nap:convertUnixTimeToDate ;
+	fno:implementation sprintm:sprintFunctions ;
+	fno:methodMapping  [ a fnom:StringMethodMapping ;
+                           fnom:method-name "convertUnixTimeToDate" ] .	
+
+sprint-nap:convertDateTimeToUTC a fno:Function;
+    fno:name "Convert Date Time To UTC"^^xsd:string;
+    dcterms:description "Convert Date Time To UTC to the xsd:date format."^^xsd:string;
+    fno:expects ( sprint-nap:dateTime );
+    fno:returns ( sprint-nap:fdate ).
+	
+sprintm:convertDateTimeToUTCMapping
+	a fnoi:Mapping ;
+	fno:function sprint-nap:convertDateTimeToUTC ;
+	fno:implementation sprintm:sprintFunctions ;
+	fno:methodMapping  [ a fnom:StringMethodMapping ;
+                           fnom:method-name "convertDateTimeToUTC" ] .
+
+sprint-nap:getFrenchNAPCatalogueRecordModifiedDate a fno:Function;
+    fno:name "getFrenchNAPCatalogueRecordModifiedDate"^^xsd:string;
+    dcterms:description "Convert Date Time To UTC to the xsd:date format."^^xsd:string;
+    fno:expects ( sprint-nap:updateTime sprint-nap:createTime );
+    fno:returns ( sprint-nap:fdate ).
+	
+sprintm:getFrenchNAPCatalogueRecordModifiedDateMapping
+	a fnoi:Mapping ;
+	fno:function sprint-nap:getFrenchNAPCatalogueRecordModifiedDate ;
+	fno:implementation sprintm:sprintFunctions ;
+	fno:methodMapping  [ a fnom:StringMethodMapping ;
+                           fnom:method-name "getFrenchNAPCatalogueRecordModifiedDate" ] .
+	
+sprint-nap:dateTime a fno:Parameter;
+    fno:predicate sprint-nap:dateParam;
+    fno:required "true"^^xsd:boolean;
+    fno:type xsd:string .
+
+sprint-nap:fdate a fno:Output;
+    fno:predicate sprint-nap:fdateOutput;
+    fno:required "true"^^xsd:boolean;
+    fno:type xsd:string .
+	
+sprint-nap:updateTime a fno:Parameter;
+    fno:predicate sprint-nap:updateTimeParam;
+    fno:required "true"^^xsd:boolean;
+    fno:type xsd:string .	
+	
+sprint-nap:createTime a fno:Parameter;
+    fno:predicate sprint-nap:createTimeParam;
+    fno:required "true"^^xsd:boolean;
+    fno:type xsd:string .	
