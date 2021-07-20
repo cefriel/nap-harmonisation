@@ -1,0 +1,39 @@
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX dct: <http://purl.org/dc/terms/>
+PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+PREFIX dcat: <https://www.w3.org/ns/dcat#>
+PREFIX cef: <http://www.cefriel.com/knowledgetech/>
+PREFIX pso: <http://purl.org/spar/pso/>
+
+SELECT ?s ?type ?asset_type ?title ?desc ?institution ?page ?provider_name ?provider_description ?asset_status 
+WHERE {
+  ?provider_uri  dct:dataset ?s;
+      dct:title ?provider_name;
+      dct:description ?provider_desc.
+  ?s rdf:type ?type;
+      dct:type ?asset_type;
+      dct:title ?title.
+  
+  FILTER langMatches(lang(?provider_desc), "en")
+  BIND (str(?provider_desc) as ?provider_description).
+  OPTIONAL {
+    ?s pso:holdsStatusInTime [
+      pso:withStatus ?status_id
+    ].
+    ?status_id rdfs:label ?status.
+  }
+  BIND(if(bound(?status), ?status, "unpublished") as ?asset_status)
+  OPTIONAL {
+    ?s dct:description ?description
+    FILTER langMatches(lang(?description), "en")
+    BIND (str(?description) as ?desc).
+  }
+  OPTIONAL {
+    ?s dcat:distribution [ dcat:accessURL ?page ]
+  }
+  OPTIONAL {
+    ?s dct:publisher [
+      foaf:name ?institution
+    ].
+  }
+}
