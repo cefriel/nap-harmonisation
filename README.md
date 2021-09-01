@@ -1,5 +1,5 @@
-# nap-harmonisation
-This repository contains the configuration files for the prototype supporting National Access Point Federation via Metadata Harmonization. The prototype defines mappings for the NAPs of Belgium, France and Netherlands.
+# nap-metadata-harmonisation
+This repository contains the configuration files for the prototype supporting National Access Point Federation via Metadata Harmonisation. The prototype defines mappings for the NAPs of Belgium, France and Netherlands.
 
 The repository is structured as follows:
 
