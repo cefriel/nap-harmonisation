@@ -7,7 +7,7 @@ The repository is structured as follows:
 - `chimera-route` contains the route to configure a [Chimera](https://github.com/cefriel/chimera) converter applying RML mappings to the metadata exposed by National Access Point
 - `asset-manager` contains the configuration to query the different NAP assets in the prototype
 
-The content of this repository is discussed in details in:
+The content of this repository is discussed in detail in:
 > Alessio Carenini, Andrea Fiano, Mario Scrocca, Marco Comerio and Irene Celino. _Enabling Cross-Border Travel Offers Through National Access Point Federation via Metadata Harmonisation_. Proceedings of the 3rd International Workshop Semantics And The Web For Transport co-located with Semantics Conference (SEMANTiCS 2021). http://ceur-ws.org/Vol-2939/paper6.pdf
 
 Please cite this paper if you use the content of this repository in your work.
